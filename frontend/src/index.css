@@ -1,0 +1,320 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  /* Cores inspiradas no Banco do Brasil */
+  --bb-blue: #003366; /* Azul principal do BB */
+  --bb-blue-light: #004d99; /* Azul claro */
+  --bb-blue-dark: #002244; /* Azul escuro */
+  --bb-gold: #FFD700; /* Dourado do BB */
+  --bb-gold-light: #FFE44D; /* Dourado claro */
+  --bb-white: #ffffff;
+  --bb-gray-light: #f5f5f5;
+  --bb-gray: #e0e0e0;
+  --bb-gray-dark: #666666;
+  --bb-text-dark: #1a1a1a;
+  --bb-text-gray: #4a4a4a;
+  
+  /* Variáveis de uso */
+  --primary-color: var(--bb-blue);
+  --secondary-color: var(--bb-blue-dark);
+  --accent-color: var(--bb-gold);
+  --accent-gold: var(--bb-gold);
+  --accent-blue: var(--bb-blue-light);
+  --text-primary: var(--bb-text-dark);
+  --text-secondary: var(--bb-text-gray);
+  --text-muted: #888888;
+  --background-gradient-start: #f8f9fa; /* Fundo claro */
+  --background-gradient-end: #e9ecef; /* Fundo cinza claro */
+  --card-background: var(--bb-white);
+  --card-border: var(--bb-gray);
+  --input-background: var(--bb-white);
+  --input-border: #d0d0d0;
+  --button-primary-bg: var(--bb-blue);
+  --button-primary-hover-bg: var(--bb-blue-light);
+  --button-secondary-bg: #f0f0f0;
+  --button-secondary-hover-bg: #e0e0e0;
+  --error-color: #d32f2f;
+  --success-color: #2e7d32;
+}
+
+body {
+  font-family: 'Inter', 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background: var(--bb-gray-light);
+  background-image: 
+    linear-gradient(135deg, rgba(0, 51, 102, 0.02) 0%, rgba(0, 77, 153, 0.02) 100%),
+    linear-gradient(180deg, #ffffff 0%, #f8f9fa 100%);
+  background-attachment: fixed;
+  color: var(--text-primary);
+  line-height: 1.6;
+  min-height: 100vh;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--secondary-color);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--accent-blue);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #2563eb;
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    monospace;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+.card {
+  background-color: var(--card-background);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
+  color: var(--bb-text-dark);
+  transition: box-shadow 0.3s ease;
+}
+
+.card:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12), 0 2px 4px rgba(0, 0, 0, 0.06);
+}
+
+.card-header {
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--card-border);
+}
+
+.card-header h2 {
+  color: var(--bb-blue);
+  font-size: 1.75rem;
+  font-weight: 600;
+  font-family: 'Inter', sans-serif;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+.form-group {
+  margin-bottom: 1.5rem;
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  color: var(--bb-text-dark);
+  font-size: 0.875rem;
+  letter-spacing: 0;
+}
+
+.form-control {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--input-border);
+  border-radius: 6px;
+  font-size: 0.9375rem;
+  background-color: var(--input-background);
+  color: var(--bb-text-dark);
+  transition: all 0.2s ease;
+  font-weight: 400;
+}
+
+.form-control::placeholder {
+  color: #94a3b8;
+  opacity: 0.8;
+}
+
+.form-control:focus {
+  outline: none;
+  border-color: var(--bb-blue);
+  box-shadow: 0 0 0 3px rgba(0, 51, 102, 0.1);
+  background-color: var(--bb-white);
+}
+
+.form-control:disabled {
+  background-color: rgba(15, 23, 42, 0.5);
+  color: var(--text-secondary);
+  cursor: not-allowed;
+}
+
+.btn {
+  padding: 0.8rem 1.5rem;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.btn-primary {
+  background: var(--bb-blue);
+  color: white;
+  box-shadow: 0 2px 8px rgba(0, 51, 102, 0.25);
+  font-weight: 500;
+  letter-spacing: 0;
+  border: none;
+}
+
+.btn-primary:hover {
+  background: var(--bb-blue-light);
+  box-shadow: 0 4px 12px rgba(0, 51, 102, 0.35);
+  transform: translateY(-1px);
+}
+
+.btn-secondary {
+  background-color: var(--bb-white);
+  color: var(--bb-blue);
+  border: 1px solid var(--bb-blue);
+  font-weight: 500;
+}
+
+.btn-secondary:hover {
+  background-color: var(--bb-gray-light);
+  box-shadow: 0 2px 8px rgba(0, 51, 102, 0.15);
+  transform: translateY(-1px);
+  border-color: var(--bb-blue-light);
+}
+
+.btn-danger {
+  background-color: #ef4444;
+  color: white;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+
+.btn-danger:hover {
+  background-color: #dc2626;
+  box-shadow: 0 6px 16px rgba(239, 68, 68, 0.4);
+  transform: translateY(-2px);
+}
+
+.btn-sm {
+  padding: 0.6rem 1.2rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.alert {
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+  font-weight: 500;
+}
+
+.alert-error {
+  background-color: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+  border: 1px solid #ef4444;
+  border-left: 4px solid #ef4444;
+}
+
+.loading {
+  text-align: center;
+  padding: 2rem;
+  font-size: 1.2rem;
+  color: var(--text-secondary);
+}
+
+.text-center {
+  text-align: center;
+}
+
+.mt-3 {
+  margin-top: 1rem;
+}
+
+.d-flex {
+  display: flex;
+}
+
+.justify-content-between {
+  justify-content: space-between;
+}
+
+.gap-1 {
+  gap: 0.5rem;
+}
+
+.gap-2 {
+  gap: 1rem;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1.5rem;
+}
+
+.table th,
+.table td {
+  padding: 1rem 1.25rem;
+  text-align: left;
+  border-bottom: 1px solid #e2e8f0;
+  color: #1e293b;
+}
+
+.table th {
+  background-color: var(--bb-gray-light);
+  color: var(--bb-blue);
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  border-bottom: 2px solid var(--bb-gray);
+}
+
+.table tbody tr {
+  color: var(--bb-text-dark);
+}
+
+.table tbody tr:hover {
+  background-color: var(--bb-gray-light);
+}
+
+.table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* Fade-in animation */
+.fade-in {
+  animation: fadeIn 0.8s ease-out forwards;
+  opacity: 0;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
