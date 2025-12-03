@@ -24,16 +24,13 @@ from .services import calcular_simulacao_dividendos, calcular_yield_medio_ativos
 from .brapi_service import BrapiService
 
 
+# ViewSet para CRUD completo de Ativos, incluindo busca por ticker ou nome.
 class AtivoViewSet(viewsets.ModelViewSet):
-    """
-    ViewSet para CRUD completo de Ativos.
-    Inclui busca por ticker ou nome.
-    """
     serializer_class = AtivoSerializer
     # permission_classes = [IsAuthenticated]  # Desabilitado para facilitar testes
 
+    # Filtra ativos do usuário logado.
     def get_queryset(self):
-        """Filtra ativos do usuário logado."""
         # Por enquanto, usar usuário padrão (id=1) se não autenticado
         user_id = self.request.user.id if self.request.user.is_authenticated else 1
         queryset = Ativo.objects.filter(usuario_id=user_id)
@@ -49,19 +46,15 @@ class AtivoViewSet(viewsets.ModelViewSet):
         
         return queryset.order_by('ticker')
 
+    # Associa o ativo ao usuário logado ao criar.
     def perform_create(self, serializer):
-        """Associa o ativo ao usuário logado ao criar."""
         # Por enquanto, usar usuário padrão (id=1) se não autenticado
         user = self.request.user if self.request.user.is_authenticated else User.objects.get(id=1)
         serializer.save(usuario=user)
     
+    # Busca dados de uma ação na API Brapi e retorna informações. Endpoint: POST /api/ativos/buscar_dados_brapi/
     @action(detail=False, methods=['post'])
     def buscar_dados_brapi(self, request):
-        """
-        Busca dados de uma ação na API Brapi e retorna informações.
-        Endpoint: POST /api/ativos/buscar_dados_brapi/
-        Body: {"ticker": "PETR4"}
-        """
         ticker = request.data.get('ticker', '').upper().strip()
         
         if not ticker:
@@ -72,25 +65,25 @@ class AtivoViewSet(viewsets.ModelViewSet):
         
         try:
             # Buscar dados na Brapi
-            quote_data = BrapiService.get_quote(ticker, range_days="1y", dividends=True)
+            dados = BrapiService.get_quote(ticker, range_days="1y", dividends=True)
             
-            if not quote_data:
+            if not dados:
                 # Verificar se é um ticker que requer token
                 tickers_gratuitos = ["PETR4", "MGLU3", "VALE3", "ITUB4"]
                 if ticker.upper() not in tickers_gratuitos:
-                    erro_msg = f'Não foi possível encontrar dados para o ticker {ticker}. Este ticker requer um token de autenticação da Brapi. Tickers gratuitos disponíveis: PETR4, MGLU3, VALE3, ITUB4. Para obter um token gratuito e acessar outros tickers, acesse: https://brapi.dev'
+                    erro = f'Não foi possível encontrar dados para o ticker {ticker}. Este ticker requer um token de autenticação da Brapi. Tickers gratuitos disponíveis: PETR4, MGLU3, VALE3, ITUB4. Para obter um token gratuito e acessar outros tickers, acesse: https://brapi.dev'
                 else:
-                    erro_msg = f'Não foi possível encontrar dados para o ticker {ticker}. Verifique se o ticker está correto e tente novamente. A API pode estar temporariamente indisponível.'
+                    erro = f'Não foi possível encontrar dados para o ticker {ticker}. Verifique se o ticker está correto e tente novamente. A API pode estar temporariamente indisponível.'
                 
                 return Response(
-                    {'erro': erro_msg},
+                    {'erro': erro},
                     status=status.HTTP_404_NOT_FOUND
                 )
             
-            # Extrair informações diretamente do quote_data para evitar múltiplas chamadas
-            nome_empresa = quote_data.get("longName") or quote_data.get("shortName") or ""
-            setor = quote_data.get("sector") or ""
-            preco_atual = quote_data.get("regularMarketPrice") or quote_data.get("price")
+            # Extrair informações diretamente dos dados para evitar múltiplas chamadas
+            nome_empresa = dados.get("longName") or dados.get("shortName") or ""
+            setor = dados.get("sector") or ""
+            preco_atual = dados.get("regularMarketPrice") or dados.get("price")
             
             # Validar que temos dados básicos
             if not nome_empresa and not preco_atual:
@@ -101,69 +94,69 @@ class AtivoViewSet(viewsets.ModelViewSet):
             
             # Buscar dividendos e yield
             try:
-                dividends = BrapiService.get_dividends(ticker, range_days="1y")
-                print(f"Dividendos obtidos: {len(dividends) if dividends else 0}")
+                dividendos = BrapiService.get_dividends(ticker, range_days="1y")
+                print(f"Dividendos obtidos: {len(dividendos) if dividendos else 0}")
             except Exception as e:
                 print(f"Erro ao buscar dividendos: {e}")
                 import traceback
                 traceback.print_exc()
-                dividends = []
+                dividendos = []
             
             # Converter dividendos para formato serializável (Decimal -> float)
-            dividends_serialized = []
-            for div in dividends:
+            dividendos_lista = []
+            for div in dividendos:
                 try:
-                    valor_acao = div.get("valor_por_acao", 0)
+                    valor = div.get("valor_por_acao", 0)
                     # Converter Decimal para float de forma segura
-                    if isinstance(valor_acao, Decimal):
-                        valor_acao = float(valor_acao)
-                    elif not isinstance(valor_acao, (int, float)):
-                        valor_acao = float(str(valor_acao)) if valor_acao else 0.0
+                    if isinstance(valor, Decimal):
+                        valor = float(valor)
+                    elif not isinstance(valor, (int, float)):
+                        valor = float(str(valor)) if valor else 0.0
                     else:
-                        valor_acao = float(valor_acao)
+                        valor = float(valor)
                     
-                    dividends_serialized.append({
+                    dividendos_lista.append({
                         "data_pagamento": str(div.get("data_pagamento", "")),
-                        "valor_por_acao": valor_acao,
+                        "valor_por_acao": valor,
                         "fonte": str(div.get("fonte", "api"))
                     })
                 except Exception as e:
                     print(f"Erro ao serializar dividendo: {e}, div: {div}")
                     continue
             
-            yield_value = None
+            yield_calc = None
             if preco_atual:
                 try:
-                    current_price = Decimal(str(preco_atual))
-                    if dividends and len(dividends) > 0:
-                        # Usar os dividendos originais (não serializados) para calcular yield
-                        total_dividends = sum(Decimal(str(d.get("valor_por_acao", 0))) for d in dividends)
-                        if total_dividends > 0 and current_price > 0:
-                            yield_value = (total_dividends / current_price) * Decimal("100")
-                            print(f"Yield calculado: {yield_value}")
+                    preco = Decimal(str(preco_atual))
+                    if dividendos and len(dividendos) > 0:
+                        # Usar os dividendos originais para calcular yield
+                        total = sum(Decimal(str(d.get("valor_por_acao", 0))) for d in dividendos)
+                        if total > 0 and preco > 0:
+                            yield_calc = (total / preco) * Decimal("100")
+                            print(f"Yield calculado: {yield_calc}")
                 except Exception as e:
                     print(f"Erro ao calcular yield: {e}")
                     import traceback
                     traceback.print_exc()
-                    yield_value = None
+                    yield_calc = None
             
             # Preparar resposta com conversões seguras
             try:
-                response_data = {
+                resposta = {
                     'ticker': str(ticker),
                     'nome_empresa': str(nome_empresa) if nome_empresa else '',
                     'setor': str(setor) if setor else '',
                     'pais': 'Brasil',
                     'preco_atual': float(preco_atual) if preco_atual else None,
-                    'yield_anual': float(yield_value) if yield_value else None,
-                    'dividendos': dividends_serialized,
-                    'total_dividendos_ano': len(dividends_serialized),
+                    'yield_anual': float(yield_calc) if yield_calc else None,
+                    'dividendos': dividendos_lista,
+                    'total_dividendos_ano': len(dividendos_lista),
                 }
                 
                 # Log para debug (remover em produção)
-                print(f"Retornando dados da Brapi para {ticker}: {len(dividends_serialized)} dividendos")
+                print(f"Retornando dados da Brapi para {ticker}: {len(dividendos_lista)} dividendos")
                 
-                return Response(response_data, status=status.HTTP_200_OK)
+                return Response(resposta, status=status.HTTP_200_OK)
             except Exception as e:
                 import traceback
                 print(f"Erro ao preparar resposta: {e}")
@@ -185,38 +178,35 @@ class AtivoViewSet(viewsets.ModelViewSet):
             )
         except Exception as e:
             import traceback
-            error_msg = str(e)
-            error_trace = traceback.format_exc()
-            print(f"Erro completo ao buscar dados da Brapi: {error_trace}")
+            msg = str(e)
+            trace = traceback.format_exc()
+            print(f"Erro completo ao buscar dados da Brapi: {trace}")
             
             # Log detalhado para debug
             print(f"Tipo do erro: {type(e).__name__}")
-            print(f"Mensagem: {error_msg}")
+            print(f"Mensagem: {msg}")
             
-            if 'Network' in error_msg or 'connection' in error_msg.lower():
-                error_msg = 'Erro de conexão. Verifique sua internet e se a API Brapi está disponível.'
-            elif '500' in error_msg or 'Internal Server Error' in error_msg:
-                error_msg = 'Erro interno ao processar dados da Brapi. Tente novamente ou use um ticker diferente.'
+            if 'Network' in msg or 'connection' in msg.lower():
+                msg = 'Erro de conexão. Verifique sua internet e se a API Brapi está disponível.'
+            elif '500' in msg or 'Internal Server Error' in msg:
+                msg = 'Erro interno ao processar dados da Brapi. Tente novamente ou use um ticker diferente.'
             elif isinstance(e, (ValueError, TypeError)):
-                error_msg = f'Erro ao processar dados: {error_msg}'
+                msg = f'Erro ao processar dados: {msg}'
             
             return Response(
-                {'erro': f'Erro ao buscar dados da Brapi: {error_msg}'},
+                {'erro': f'Erro ao buscar dados da Brapi: {msg}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
     
+    # Importa dividendos de um ativo da API Brapi. Endpoint: POST /api/ativos/{id}/importar_dividendos_brapi/
     @action(detail=True, methods=['post'])
     def importar_dividendos_brapi(self, request, pk=None):
-        """
-        Importa dividendos de um ativo da API Brapi.
-        Endpoint: POST /api/ativos/{id}/importar_dividendos_brapi/
-        """
         ativo = self.get_object()
         
         # Buscar dividendos na Brapi
-        dividends = BrapiService.get_dividends(ativo.ticker, range_days="1y")
+        dividendos = BrapiService.get_dividends(ativo.ticker, range_days="1y")
         
-        if not dividends:
+        if not dividendos:
             return Response(
                 {'erro': f'Não foram encontrados dividendos para {ativo.ticker}'},
                 status=status.HTTP_404_NOT_FOUND
@@ -226,19 +216,19 @@ class AtivoViewSet(viewsets.ModelViewSet):
         importados = 0
         duplicados = 0
         
-        for div_data in dividends:
+        for div in dividendos:
             # Verificar se já existe
             existe = HistoricoDividendo.objects.filter(
                 ativo=ativo,
-                data_pagamento=div_data['data_pagamento']
+                data_pagamento=div['data_pagamento']
             ).exists()
             
             if not existe:
                 HistoricoDividendo.objects.create(
                     ativo=ativo,
-                    data_pagamento=div_data['data_pagamento'],
-                    valor_por_acao=div_data['valor_por_acao'],
-                    fonte=div_data['fonte'],
+                    data_pagamento=div['data_pagamento'],
+                    valor_por_acao=div['valor_por_acao'],
+                    fonte=div['fonte'],
                     observacoes=f'Importado automaticamente da Brapi em {timezone.now().strftime("%d/%m/%Y %H:%M")}'
                 )
                 importados += 1
@@ -249,20 +239,17 @@ class AtivoViewSet(viewsets.ModelViewSet):
             'mensagem': f'Importação concluída para {ativo.ticker}',
             'importados': importados,
             'duplicados': duplicados,
-            'total_encontrados': len(dividends)
+            'total_encontrados': len(dividendos)
         }, status=status.HTTP_200_OK)
 
 
+# ViewSet para CRUD completo de Histórico de Dividendos, incluindo filtros por ativo e intervalo de datas.
 class HistoricoDividendoViewSet(viewsets.ModelViewSet):
-    """
-    ViewSet para CRUD completo de Histórico de Dividendos.
-    Inclui filtros por ativo e intervalo de datas.
-    """
     serializer_class = HistoricoDividendoSerializer
     # permission_classes = [IsAuthenticated]  # Desabilitado para facilitar testes
 
+    # Filtra dividendos dos ativos do usuário logado.
     def get_queryset(self):
-        """Filtra dividendos dos ativos do usuário logado."""
         # Por enquanto, usar usuário padrão (id=1) se não autenticado
         user_id = self.request.user.id if self.request.user.is_authenticated else 1
         ativos_usuario = Ativo.objects.filter(usuario_id=user_id)
@@ -294,16 +281,13 @@ class HistoricoDividendoViewSet(viewsets.ModelViewSet):
         return queryset.order_by('-data_pagamento', '-data_criacao')
 
 
+# ViewSet para CRUD completo de Metas de Renda, incluindo busca por nome ou valor de renda.
 class MetaRendaViewSet(viewsets.ModelViewSet):
-    """
-    ViewSet para CRUD completo de Metas de Renda.
-    Inclui busca por nome ou valor de renda.
-    """
     serializer_class = MetaRendaSerializer
     # permission_classes = [IsAuthenticated]  # Desabilitado para facilitar testes
 
+    # Filtra metas do usuário logado.
     def get_queryset(self):
-        """Filtra metas do usuário logado."""
         # Por enquanto, usar usuário padrão (id=1) se não autenticado
         user_id = self.request.user.id if self.request.user.is_authenticated else 1
         queryset = MetaRenda.objects.filter(usuario_id=user_id)
@@ -318,19 +302,15 @@ class MetaRendaViewSet(viewsets.ModelViewSet):
         
         return queryset.order_by('-data_criacao')
 
+    # Associa a meta ao usuário logado ao criar.
     def perform_create(self, serializer):
-        """Associa a meta ao usuário logado ao criar."""
         # Por enquanto, usar usuário padrão (id=1) se não autenticado
         user = self.request.user if self.request.user.is_authenticated else User.objects.get(id=1)
         serializer.save(usuario=user)
 
+    # Executa uma simulação baseada em uma MetaRenda, aceita yield_medio opcional e lista de ativos_ids.
     @action(detail=True, methods=['post'])
     def simular(self, request, pk=None):
-        """
-        Endpoint para executar uma simulação baseada em uma MetaRenda.
-        Aceita yield_medio opcional e lista de ativos_ids.
-        Se não fornecido, calcula baseado nos ativos selecionados ou do usuário.
-        """
         meta = self.get_object()
         
         # Obter yield médio (opcional)
@@ -376,8 +356,8 @@ class MetaRendaViewSet(viewsets.ModelViewSet):
                         # Tentar buscar preço atual da Brapi
                         preco = BrapiService.get_current_price(ativo.ticker)
                         if preco and preco > 0:
-                            yield_calculado = (total_dividendos / preco) * Decimal('100')
-                            yields.append(yield_calculado)
+                            yield_ativo = (total_dividendos / preco) * Decimal('100')
+                            yields.append(yield_ativo)
             
             # Calcular média dos yields ou usar padrão
             if yields:
@@ -408,15 +388,13 @@ class MetaRendaViewSet(viewsets.ModelViewSet):
         return Response(resultado, status=status.HTTP_200_OK)
 
 
+# ViewSet para CRUD completo de Simulações.
 class SimulacaoViewSet(viewsets.ModelViewSet):
-    """
-    ViewSet para CRUD completo de Simulações.
-    """
     serializer_class = SimulacaoSerializer
     # permission_classes = [IsAuthenticated]  # Desabilitado para facilitar testes
 
+    # Filtra simulações das metas do usuário logado.
     def get_queryset(self):
-        """Filtra simulações das metas do usuário logado."""
         # Por enquanto, usar usuário padrão (id=1) se não autenticado
         user_id = self.request.user.id if self.request.user.is_authenticated else 1
         metas_usuario = MetaRenda.objects.filter(usuario_id=user_id)

@@ -6,10 +6,8 @@ from django import forms
 from .models import Ativo, HistoricoDividendo, MetaRenda
 
 
+# Formulário para criar e editar Ativos.
 class AtivoForm(forms.ModelForm):
-    """
-    Formulário para criar e editar Ativos.
-    """
     class Meta:
         model = Ativo
         fields = ['ticker', 'nome_empresa', 'setor', 'pais', 'observacoes']
@@ -44,18 +42,16 @@ class AtivoForm(forms.ModelForm):
             'observacoes': 'Observações',
         }
 
+    # Valida e normaliza o ticker, retornando em maiúsculas e sem espaços.
     def clean_ticker(self):
-        """Validação: ticker deve ser em maiúsculas."""
         ticker = self.cleaned_data.get('ticker')
         if ticker:
             return ticker.upper().strip()
         return ticker
 
 
+# Formulário para criar e editar histórico de dividendos.
 class HistoricoDividendoForm(forms.ModelForm):
-    """
-    Formulário para criar e editar histórico de dividendos.
-    """
     class Meta:
         model = HistoricoDividendo
         fields = ['ativo', 'data_pagamento', 'valor_por_acao', 'fonte', 'observacoes']
@@ -91,10 +87,8 @@ class HistoricoDividendoForm(forms.ModelForm):
         }
 
 
+# Formulário para criar e editar Metas de Renda.
 class MetaRendaForm(forms.ModelForm):
-    """
-    Formulário para criar e editar Metas de Renda.
-    """
     class Meta:
         model = MetaRenda
         fields = [
@@ -143,15 +137,15 @@ class MetaRendaForm(forms.ModelForm):
             'percentual_reinvestimento': 'Percentual de Reinvestimento (%)',
         }
 
+    # Valida que a renda mensal desejada seja positiva, lança ValidationError se menor ou igual a zero.
     def clean_renda_mensal_desejada(self):
-        """Validação: renda deve ser positiva."""
         renda = self.cleaned_data.get('renda_mensal_desejada')
         if renda and renda <= 0:
             raise forms.ValidationError('A renda mensal desejada deve ser maior que zero.')
         return renda
 
+    # Valida que o número de anos seja pelo menos 1, lança ValidationError se menor que 1.
     def clean_anos_para_atingir(self):
-        """Validação: anos deve ser pelo menos 1."""
         anos = self.cleaned_data.get('anos_para_atingir')
         if anos and anos < 1:
             raise forms.ValidationError('Deve ter pelo menos 1 ano para atingir a meta.')

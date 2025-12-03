@@ -7,16 +7,16 @@ from django.contrib.auth.models import User
 from .models import Ativo, HistoricoDividendo, MetaRenda, Simulacao
 
 
+# Serializer para User (apenas leitura, para referências).
 class UserSerializer(serializers.ModelSerializer):
-    """Serializer para User (apenas leitura, para referências)."""
     class Meta:
         model = User
         fields = ['id', 'username', 'email']
         read_only_fields = ['id', 'username', 'email']
 
 
+# Serializer para HistoricoDividendo.
 class HistoricoDividendoSerializer(serializers.ModelSerializer):
-    """Serializer para HistoricoDividendo."""
     ativo_ticker = serializers.CharField(source='ativo.ticker', read_only=True)
     ativo_nome = serializers.CharField(source='ativo.nome_empresa', read_only=True)
 
@@ -29,8 +29,8 @@ class HistoricoDividendoSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'data_criacao']
 
 
+# Serializer para Ativo.
 class AtivoSerializer(serializers.ModelSerializer):
-    """Serializer para Ativo."""
     usuario_username = serializers.CharField(source='usuario.username', read_only=True)
     historico_dividendos = HistoricoDividendoSerializer(many=True, read_only=True)
     total_dividendos_ano = serializers.SerializerMethodField()
@@ -44,8 +44,8 @@ class AtivoSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id', 'data_criacao', 'data_atualizacao']
 
+    # Calcula o total de dividendos do último ano para este ativo.
     def get_total_dividendos_ano(self, obj):
-        """Calcula o total de dividendos do último ano para este ativo."""
         from datetime import datetime, timedelta
         from django.db.models import Sum
         
@@ -57,8 +57,8 @@ class AtivoSerializer(serializers.ModelSerializer):
         return float(total) if total else 0.0
 
 
+# Serializer para MetaRenda.
 class MetaRendaSerializer(serializers.ModelSerializer):
-    """Serializer para MetaRenda."""
     usuario_username = serializers.CharField(source='usuario.username', read_only=True)
     simulacoes = serializers.SerializerMethodField()
 
@@ -71,14 +71,14 @@ class MetaRendaSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id', 'data_criacao', 'data_atualizacao']
 
+    # Retorna as últimas 5 simulações desta meta.
     def get_simulacoes(self, obj):
-        """Retorna as últimas 5 simulações desta meta."""
         simulacoes = obj.simulacoes.all()[:5]
         return SimulacaoSerializer(simulacoes, many=True).data
 
 
+# Serializer para Simulacao.
 class SimulacaoSerializer(serializers.ModelSerializer):
-    """Serializer para Simulacao."""
     meta_renda_nome = serializers.CharField(source='meta_renda.nome', read_only=True)
 
     class Meta:

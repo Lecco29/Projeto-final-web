@@ -9,43 +9,26 @@ from decimal import Decimal
 from datetime import datetime, timedelta
 
 
+# Classe para interagir com a API Brapi. Alguns tickers são gratuitos (PETR4, MGLU3, VALE3, ITUB4), para outros é necessário token.
 class BrapiService:
-    """
-    Classe para interagir com a API Brapi.
-    Documentação: https://brapi.dev/docs
-    
-    Nota: Alguns tickers são gratuitos (PETR4, MGLU3, VALE3, ITUB4).
-    Para outros tickers, é necessário um token de autenticação.
-    Obtenha um token gratuito em: https://brapi.dev
-    """
     
     BASE_URL = "https://brapi.dev/api"
     
     # Tickers gratuitos que não precisam de token
     FREE_TICKERS = ["PETR4", "MGLU3", "VALE3", "ITUB4"]
     
+    # Testa se a conexão com a Brapi está funcionando.
     @staticmethod
     def test_connection() -> bool:
-        """Testa se a conexão com a Brapi está funcionando."""
         try:
             response = requests.get("https://brapi.dev/api/quote/PETR4", timeout=5)
             return response.status_code == 200
         except:
             return False
     
+    # Busca informações de uma ação, incluindo preço e dividendos.
     @staticmethod
     def get_quote(ticker: str, range_days: str = "1y", dividends: bool = True) -> Optional[Dict]:
-        """
-        Busca informações de uma ação, incluindo preço e dividendos.
-        
-        Args:
-            ticker: Código do ativo (ex: PETR4, VALE3)
-            range_days: Período para histórico (1d, 5d, 1mo, 3mo, 6mo, 1y, 2y, 5y, 10y, ytd, max)
-            dividends: Se True, inclui dados de dividendos
-        
-        Returns:
-            Dict com dados da ação ou None em caso de erro
-        """
         try:
             # Formatar ticker corretamente (remover espaços, garantir maiúsculas)
             ticker = ticker.upper().strip()
@@ -87,30 +70,30 @@ class BrapiService:
             if response.status_code != 200:
                 print(f"Erro HTTP {response.status_code} da API Brapi para {ticker}")
                 try:
-                    error_data = response.json()
-                    error_msg = error_data.get("error") or error_data.get("message", f"Erro HTTP {response.status_code}")
-                    print(f"Detalhes: {error_msg}")
+                    dados_erro = response.json()
+                    msg = dados_erro.get("error") or dados_erro.get("message", f"Erro HTTP {response.status_code}")
+                    print(f"Detalhes: {msg}")
                 except:
                     print(f"Resposta: {response.text[:200]}")
                 return None
             
             # Verificar se há erro na resposta JSON
             try:
-                data = response.json()
+                dados = response.json()
                 
                 # Verificar se há mensagem de erro
-                if "error" in data or "message" in data:
-                    error_msg = data.get("error") or data.get("message", "Erro desconhecido")
-                    print(f"Erro da API Brapi para {ticker}: {error_msg}")
+                if "error" in dados or "message" in dados:
+                    msg = dados.get("error") or dados.get("message", "Erro desconhecido")
+                    print(f"Erro da API Brapi para {ticker}: {msg}")
                     return None
                 
                 # A API retorna um array de resultados
-                if "results" in data and len(data["results"]) > 0:
-                    return data["results"][0]
+                if "results" in dados and len(dados["results"]) > 0:
+                    return dados["results"][0]
                 
                 # Se não tem results, pode ser que retornou diretamente
-                if isinstance(data, dict) and "symbol" in data:
-                    return data
+                if isinstance(dados, dict) and "symbol" in dados:
+                    return dados
                 
                 # Se chegou aqui e não retornou nada, não encontrou dados
                 print(f"Nenhum dado encontrado na resposta da Brapi para {ticker}")
@@ -134,24 +117,15 @@ class BrapiService:
             print(f"Erro inesperado ao buscar dados da Brapi: {e}")
             return None
     
+    # Extrai e formata os dividendos de uma ação.
     @staticmethod
     def get_dividends(ticker: str, range_days: str = "1y") -> List[Dict]:
-        """
-        Extrai e formata os dividendos de uma ação.
+        dados = BrapiService.get_quote(ticker, range_days, dividends=True)
         
-        Args:
-            ticker: Código do ativo
-            range_days: Período para histórico
-        
-        Returns:
-            Lista de dicionários com dados de dividendos formatados
-        """
-        quote_data = BrapiService.get_quote(ticker, range_days, dividends=True)
-        
-        if not quote_data:
+        if not dados:
             return []
         
-        dividends = []
+        dividendos = []
         
         # A API retorna dividendos no formato:
         # "dividendsData": {
@@ -159,43 +133,43 @@ class BrapiService:
         #   "stockDividends": [...],
         #   "subscriptions": [...]
         # }
-        if "dividendsData" in quote_data:
-            dividends_data = quote_data["dividendsData"]
+        if "dividendsData" in dados:
+            info_dividendos = dados["dividendsData"]
             
             # Novo formato: dividendsData é um objeto com cashDividends
-            if isinstance(dividends_data, dict):
-                cash_dividends = dividends_data.get("cashDividends", [])
+            if isinstance(info_dividendos, dict):
+                dividendos_dinheiro = info_dividendos.get("cashDividends", [])
                 
-                for div in cash_dividends:
+                for div in dividendos_dinheiro:
                     try:
                         if not isinstance(div, dict):
                             continue
                         
                         # Extrair data de pagamento
-                        payment_date = div.get("paymentDate", "")
-                        if payment_date:
+                        data = div.get("paymentDate", "")
+                        if data:
                             # Converter de ISO 8601 para formato YYYY-MM-DD
-                            if isinstance(payment_date, str):
+                            if isinstance(data, str):
                                 # Remover timezone e pegar apenas a data
-                                date_str = payment_date.split('T')[0] if 'T' in payment_date else payment_date
+                                data_str = data.split('T')[0] if 'T' in data else data
                             else:
-                                date_str = str(payment_date)
+                                data_str = str(data)
                         else:
                             continue
                         
                         # Extrair valor do dividendo (rate)
-                        dividend_value = div.get("rate", 0)
+                        valor = div.get("rate", 0)
                         
                         # Converter para Decimal
-                        if isinstance(dividend_value, (int, float)):
-                            dividend_value = Decimal(str(dividend_value))
+                        if isinstance(valor, (int, float)):
+                            valor = Decimal(str(valor))
                         else:
-                            dividend_value = Decimal(str(dividend_value)) if dividend_value else Decimal('0')
+                            valor = Decimal(str(valor)) if valor else Decimal('0')
                         
-                        if date_str and dividend_value > 0:
-                            dividends.append({
-                                "data_pagamento": date_str,
-                                "valor_por_acao": dividend_value,
+                        if data_str and valor > 0:
+                            dividendos.append({
+                                "data_pagamento": data_str,
+                                "valor_por_acao": valor,
                                 "fonte": "api"
                             })
                     except Exception as e:
@@ -203,119 +177,94 @@ class BrapiService:
                         continue
             
             # Formato antigo (compatibilidade): dividendsData é uma lista direta
-            elif isinstance(dividends_data, list):
-                for div in dividends_data:
+            elif isinstance(info_dividendos, list):
+                for div in info_dividendos:
                     try:
                         if not isinstance(div, dict):
                             continue
                         
-                        date_str = div.get("date", "")
-                        dividend_value = div.get("dividend", 0)
+                        data_str = div.get("date", "")
+                        valor = div.get("dividend", 0)
                         
-                        if isinstance(dividend_value, (int, float)):
-                            dividend_value = Decimal(str(dividend_value))
+                        if isinstance(valor, (int, float)):
+                            valor = Decimal(str(valor))
                         else:
-                            dividend_value = Decimal(str(dividend_value)) if dividend_value else Decimal('0')
+                            valor = Decimal(str(valor)) if valor else Decimal('0')
                         
-                        if date_str and dividend_value > 0:
-                            dividends.append({
-                                "data_pagamento": date_str,
-                                "valor_por_acao": dividend_value,
+                        if data_str and valor > 0:
+                            dividendos.append({
+                                "data_pagamento": data_str,
+                                "valor_por_acao": valor,
                                 "fonte": "api"
                             })
                     except Exception as e:
                         print(f"Erro ao processar dividendo: {e}")
                         continue
         
-        return dividends
+        return dividendos
     
+    # Busca o preço atual de uma ação.
     @staticmethod
     def get_current_price(ticker: str) -> Optional[Decimal]:
-        """
-        Busca o preço atual de uma ação.
+        dados = BrapiService.get_quote(ticker, range_days="1d", dividends=False)
         
-        Args:
-            ticker: Código do ativo
-        
-        Returns:
-            Preço atual ou None
-        """
-        quote_data = BrapiService.get_quote(ticker, range_days="1d", dividends=False)
-        
-        if not quote_data:
+        if not dados:
             return None
         
         # A API retorna o preço em "regularMarketPrice" ou "price"
-        price = quote_data.get("regularMarketPrice") or quote_data.get("price")
+        preco = dados.get("regularMarketPrice") or dados.get("price")
         
-        if price:
+        if preco:
             try:
-                return Decimal(str(price))
+                return Decimal(str(preco))
             except:
                 return None
         
         return None
     
+    # Calcula o yield (dividend yield) de uma ação baseado nos dividendos do último ano.
     @staticmethod
     def calculate_yield(ticker: str, range_days: str = "1y") -> Optional[Decimal]:
-        """
-        Calcula o yield (dividend yield) de uma ação baseado nos dividendos do último ano.
+        dados = BrapiService.get_quote(ticker, range_days, dividends=True)
         
-        Args:
-            ticker: Código do ativo
-            range_days: Período para cálculo (recomendado: "1y")
-        
-        Returns:
-            Yield em percentual ou None
-        """
-        quote_data = BrapiService.get_quote(ticker, range_days, dividends=True)
-        
-        if not quote_data:
+        if not dados:
             return None
         
         # Buscar preço atual
-        current_price = BrapiService.get_current_price(ticker)
-        if not current_price or current_price <= 0:
+        preco = BrapiService.get_current_price(ticker)
+        if not preco or preco <= 0:
             return None
         
         # Somar dividendos do período
-        dividends = BrapiService.get_dividends(ticker, range_days)
-        total_dividends = sum(d["valor_por_acao"] for d in dividends)
+        dividendos = BrapiService.get_dividends(ticker, range_days)
+        total = sum(d["valor_por_acao"] for d in dividendos)
         
-        if total_dividends <= 0:
+        if total <= 0:
             return None
         
         # Calcular yield: (dividendos anuais / preço) * 100
         # Se range_days for 1y, já está anualizado
         # Se for outro período, precisamos anualizar
         if range_days == "1y":
-            yield_value = (total_dividends / current_price) * Decimal("100")
+            yield_calc = (total / preco) * Decimal("100")
         else:
             # Aproximação: assumir que o período representa proporção do ano
             # Para simplificar, vamos usar apenas 1y
-            yield_value = (total_dividends / current_price) * Decimal("100")
+            yield_calc = (total / preco) * Decimal("100")
         
-        return yield_value.quantize(Decimal("0.01"))
+        return yield_calc.quantize(Decimal("0.01"))
     
+    # Busca informações da empresa.
     @staticmethod
     def get_company_info(ticker: str) -> Optional[Dict]:
-        """
-        Busca informações da empresa.
+        dados = BrapiService.get_quote(ticker, range_days="1d", dividends=False)
         
-        Args:
-            ticker: Código do ativo
-        
-        Returns:
-            Dict com informações da empresa ou None
-        """
-        quote_data = BrapiService.get_quote(ticker, range_days="1d", dividends=False)
-        
-        if not quote_data:
+        if not dados:
             return None
         
         return {
-            "nome": quote_data.get("longName") or quote_data.get("shortName", ""),
-            "setor": quote_data.get("sector", ""),
+            "nome": dados.get("longName") or dados.get("shortName", ""),
+            "setor": dados.get("sector", ""),
             "pais": "Brasil",  # Brapi é focado em B3
         }
 

@@ -13,11 +13,8 @@ from django.contrib.auth.models import User
 from django.core.validators import MinValueValidator, MaxValueValidator
 
 
+# Representa um ativo (ação/ticker) que o usuário possui ou acompanha, com relacionamento muitos-para-um com User.
 class Ativo(models.Model):
-    """
-    Representa um ativo (ação/ticker) que o usuário possui ou acompanha.
-    Relacionamento: muitos-para-um com User.
-    """
     usuario = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
@@ -66,15 +63,14 @@ class Ativo(models.Model):
         # Garantir que um usuário não tenha ativos duplicados com o mesmo ticker
         unique_together = ['usuario', 'ticker']
 
+    # Retorna representação string do ativo.
     def __str__(self):
         return f"{self.ticker} - {self.nome_empresa}"
 
 
+# Representa um registro histórico de pagamento de dividendos, com relacionamento muitos-para-um com Ativo.
 class HistoricoDividendo(models.Model):
-    """
-    Representa um registro histórico de pagamento de dividendos.
-    Relacionamento: muitos-para-um com Ativo.
-    """
+    
     FONTE_CHOICES = [
         ('manual', 'Manual'),
         ('api', 'API'),
@@ -117,15 +113,13 @@ class HistoricoDividendo(models.Model):
         verbose_name_plural = 'Históricos de Dividendos'
         ordering = ['-data_pagamento', '-data_criacao']
 
+    # Retorna representação string do histórico de dividendo.
     def __str__(self):
         return f"{self.ativo.ticker} - {self.data_pagamento} - R$ {self.valor_por_acao}"
 
 
+# Representa uma meta de renda mensal desejada, com relacionamento muitos-para-um com User.
 class MetaRenda(models.Model):
-    """
-    Representa uma meta de renda mensal desejada.
-    Relacionamento: muitos-para-um com User.
-    """
     usuario = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
@@ -179,15 +173,13 @@ class MetaRenda(models.Model):
         verbose_name_plural = 'Metas de Renda'
         ordering = ['-data_criacao']
 
+    # Retorna representação string da meta de renda.
     def __str__(self):
         return f"{self.nome} - R$ {self.renda_mensal_desejada}/mês"
 
 
+# Armazena resultados de simulações realizadas, com relacionamento muitos-para-um com MetaRenda.
 class Simulacao(models.Model):
-    """
-    Armazena resultados de simulações realizadas.
-    Relacionamento: muitos-para-um com MetaRenda.
-    """
     meta_renda = models.ForeignKey(
         MetaRenda,
         on_delete=models.CASCADE,
@@ -229,6 +221,7 @@ class Simulacao(models.Model):
         verbose_name_plural = 'Simulações'
         ordering = ['-data_execucao']
 
+    # Retorna representação string da simulação.
     def __str__(self):
         return f"Simulação {self.meta_renda.nome} - {self.data_execucao.strftime('%d/%m/%Y %H:%M')}"
 
